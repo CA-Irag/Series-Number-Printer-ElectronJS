@@ -17,7 +17,7 @@ function createWindow() {
   });
 
   win.loadFile("index.html");
-  win.webContents.openDevTools();
+  // win.webContents.openDevTools();
 
   win.webContents.send('app-log', {
     type: 'SYS',
