@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Serial Number Printer</title>
+  <style>
+    html, html * { box-sizing: border-box; }
+    body {
+      font-family: "Arial", sans-serif;
+      padding: 20px;
+      background: rgb(245 245 245);
+    }
+    body *:not(.preview):not(.preview-part) {
+      font-family: "Poppins", sans-serif;
+      letter-spacing: -0.5px;
+    }
+    input, select { padding: 4px; }
+    .preview {
+      border: 1px dashed #ddd;
+      padding: 0.5rem;
+      min-height: 40px;
+      flex: auto;
+
+      /* FONT DEFAULTS */
+      font-size: 24px;
+      font-style: normal;
+      font-weight: 400;
+      color: red;
+    }
+    label { display: inline-block; width: 120px; }
+    input.readonly {
+      background-color: rgb(245 245 245);
+      color: #777;
+    }
+    .action-button {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border: 1px solid #555;
+      border-radius: 3px;
+      background: #f8a52829;
+    }
+
+    .action-button.primary {
+      background: #ff9f0078;
+    }
+
+    .top-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+    .top-panel h2 {
+      margin: 0;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #ddd;
+      margin-bottom: 15px;
+      border-radius: 6px; 
+      box-shadow: 1px 1px 5px -1px rgba(0,0,0,0.15);
+      background: white;
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-direction: row;
+    }
+    .panel-head h3 {
+      margin: 0;
+    }
+    .panel-head-end {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .panel-body {
+      padding: 0.25rem 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-body.panel-disabled {
+      opacity: 0.2;
+      overflow: hidden;
+      pointer-events: none;
+      /* height: 0; */
+      /* padding: 0; */
+    }
+    .panel-body-row {
+      display: flex;
+      flex-direction: row;
+      padding: 0.25rem 1rem;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .panel-body-col {
+      width: calc(50% - 1rem / 2);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: nowrap;
+      position: relative;
+    }
+    .panel-body-col > * {
+      max-width: 100%;
+    }
+    .panel-body-col > .field {
+      flex: auto;
+      border: 1px solid #222;
+      border-radius: 3px;
+      max-width: 100%;
+      text-overflow: clip;
+      max-width: calc(100% - 120px - 0.5rem);
+    }
+    .panel-body-col.panel-body-col--full {
+      width: 100%;
+    }
+    .panel-body.logs {
+      padding: 0;
+    }
+    .logs-data {
+      padding: 0.25rem 1rem;
+      background-color: #222;
+      color: lightskyblue;
+      height: 100px;
+      overflow: auto;
+      margin: 0;
+      white-space: break-spaces;
+    }
+    .logs-data > * {
+      font-family: CourierPrime-Regular !important;
+    }
+    .logs-data .WARN {
+      color: orange;
+    }
+    .logs-data .ERR {
+      color: red;
+    }
+    .logs-data .OK {
+      color: lime;
+    }
+    .logs-data a {
+      color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-panel">
+    <h2>📄 Serial Number Printer</h2>
+    <div class="top-panel-actions">
+      <button id="loadConfig" class="action-button">Load</button>
+      <button id="saveConfig" class="action-button">Save</button>
+      <button id="printBtn" class="action-button primary">🖨️ Generate PDF</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="panel">
+      <div class="panel-head"><h3>Status</h3></div>
+      <div class="panel-body logs">
+        <div class="logs-data" id="snp-logs-data"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="panel">
+      <div class="panel-head"><h3>Page Settings</h3></div>
+      <div class="panel-body">
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Page Size:</label>
+            <select id="pageSize" class="field">
+              <option value="letter">Letter (8.5 x 11 in) (216 x 279 mm)</option>
+              <option value="folio">Folio (8.5 x 13 in) (216 x 330 mm)</option>
+              <option value="legal">Legal (8.5 x 14 in) (216 x 356 mm)</option>
+              <option value="a4">A4 (8.5 x 14 in) (210 x 297 mm)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="panel-body-col">
+            <label>Iterations:</label>
+            <input id="iterations" class="field" type="number" value="5">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Width (mm):</label>
+            <input id="pageWidth" class="field readonly" type="number" value="216" readonly>
+          </div>
+          <div class="panel-body-col">
+            <label>Height (mm):</label>
+            <input id="pageHeight" class="field readonly" type="number" value="279" readonly>
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Orientation:</label>
+            <select id="orientation" class="field">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </div>
+          <div class="panel-body-col">
+            <label>Printer:</label>
+            <select id="printerSelect" class="field"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="panel">
+      <div class="panel-head"><h3>Primary Number</h3></div>
+      <div class="panel-body">
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Start:</label>
+            <input id="start1" class="field" type="number" value="1">
+          </div>
+          <div class="panel-body-col">
+            <label>Digits:</label>
+            <input id="digits1" class="field" type="number" value="6">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Prefix:</label>
+            <input id="prefix1" class="field" value="No. ">
+          </div>
+          <div class="panel-body-col">
+            <label>Suffix:</label>
+            <input id="suffix1" class="field">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>X (mm):</label>
+            <input id="x1" class="field" type="number" value="50">
+          </div>
+          <div class="panel-body-col">
+            <label>Y (mm):</label>
+            <input id="y1" class="field" type="number" value="100">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Font Size:</label>
+            <input id="fontSize1" class="field" type="number" value="24">
+          </div>
+          <div class="panel-body-col">
+            <label>Font Weight:</label>
+            <select id="fontWeight1" class="field">
+              <option value="100">100</option>
+              <option value="200">200</option>
+              <option value="300">300</option>
+              <option value="400" selected>400</option>
+              <option value="500">500</option>
+              <option value="600">600</option>
+              <option value="700">700</option>
+              <option value="800">800</option>
+              <option value="900">900</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Font Style:</label>
+            <select id="fontStyle1" class="field">
+              <option value="normal">Normal</option>
+              <option value="italic">Italic</option>
+            </select>
+          </div>
+          <div class="panel-body-col">
+            <label>Color:</label>
+            <input id="color1" class="field" type="text" value="red">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col panel-body-col--full">
+            <label>Font:</label>
+            <select id="font1" class="field"></select>
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col panel-body-col--full">
+            <label>Preview:</label>
+            <div id="fontPreview1" class="preview">
+              <span id="prefixPreview1" class="preview-part">No. </span><span id="startPreview1" class="preview-part">000001</span><span id="suffixPreview1" class="preview-part"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Second Number (Optional)</h3>
+        <div class="panel-head-end"><input type="checkbox" id="enableSecond">Enable</div>
+      </div>
+      <div id="panelSecondNumber" class="panel-body panel-disabled">
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Start:</label>
+            <input id="start2" class="field" type="number" value="1">
+          </div>
+          <div class="panel-body-col">
+            <label>Digits:</label>
+            <input id="digits2" class="field" type="number" value="6">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Prefix:</label>
+            <input id="prefix2" class="field" value="No. ">
+          </div>
+          <div class="panel-body-col">
+            <label>Suffix:</label>
+            <input id="suffix2" class="field">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>X (mm):</label>
+            <input id="x2" class="field" type="number" value="150">
+          </div>
+          <div class="panel-body-col">
+            <label>Y (mm):</label>
+            <input id="y2" class="field" type="number" value="100">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Font Size:</label>
+            <input id="fontSize2" class="field" type="number" value="24">
+          </div>
+          <div class="panel-body-col">
+            <label>Font Weight:</label>
+            <select id="fontWeight2" class="field">
+              <option value="100">100</option>
+              <option value="200">200</option>
+              <option value="300">300</option>
+              <option value="400" selected>400</option>
+              <option value="500">500</option>
+              <option value="600">600</option>
+              <option value="700">700</option>
+              <option value="800">800</option>
+              <option value="900">900</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col">
+            <label>Font Style:</label>
+            <select id="fontStyle2" class="field">
+              <option value="normal">Normal</option>
+              <option value="italic">Italic</option>
+            </select>
+          </div>
+          <div class="panel-body-col">
+            <label>Color:</label>
+            <input id="color2" class="field" type="text" value="red">
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col panel-body-col--full">
+            <label>Font:</label>
+            <select id="font2" class="field"></select>
+          </div>
+        </div>
+        <div class="panel-body-row">
+          <div class="panel-body-col panel-body-col--full">
+            <label>Preview:</label>
+            <div id="fontPreview2" class="preview">
+              <span id="prefixPreview2" class="preview-part">No. </span><span id="startPreview2" class="preview-part">000001</span><span id="suffixPreview2" class="preview-part"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
